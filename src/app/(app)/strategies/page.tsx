@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Shield, Plus, Trash2, ChevronDown, ChevronUp, Share2, Download, Copy, Check } from 'lucide-react';
+import { Shield, Plus, Trash2, ChevronDown, ChevronUp, Share2, Download, Copy, Check, Pencil } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -31,6 +31,9 @@ export default function StrategiesPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showActions, setShowActions] = useState(false);
   const [expandedStrategy, setExpandedStrategy] = useState<string | null>(null);
+  const [editingStrategy, setEditingStrategy] = useState<Strategy | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({ titre: '', contenu: '' });
   const [form, setForm] = useState({ titre: '', contenu: '' });
   const [importCode, setImportCode] = useState('');
 
@@ -99,6 +102,41 @@ export default function StrategiesPage() {
       toast('Erreur lors de la suppression', 'error');
     }
     setDeleting(null);
+  }
+
+  function openEdit(strat: Strategy) {
+    setEditingStrategy(strat);
+    setEditForm({ titre: strat.titre, contenu: strat.contenu });
+    setShowEditModal(true);
+  }
+
+  async function handleEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingStrategy || !editForm.titre.trim() || !editForm.contenu.trim()) {
+      toast('Titre et contenu requis', 'error');
+      return;
+    }
+
+    setSaving(true);
+    const supabase = supabaseRef.current;
+    const { error } = await supabase
+      .from('strategies')
+      .update({
+        titre: editForm.titre.trim(),
+        contenu: editForm.contenu.trim(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', editingStrategy.id);
+
+    if (error) {
+      toast('Erreur lors de la modification', 'error');
+    } else {
+      toast('Stratégie modifiée !');
+      setShowEditModal(false);
+      setEditingStrategy(null);
+      fetchStrategies();
+    }
+    setSaving(false);
   }
 
   async function handleImport(e: React.FormEvent) {
@@ -240,14 +278,23 @@ export default function StrategiesPage() {
                           )}
                         </button>
                       </div>
-                      <button
-                        onClick={() => handleDelete(strat.id)}
-                        disabled={deleting === strat.id}
-                        className="flex items-center gap-1.5 text-xs text-danger-400 hover:text-danger-600 transition-colors"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        {deleting === strat.id ? 'Suppression...' : 'Supprimer'}
-                      </button>
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={() => openEdit(strat)}
+                          className="flex items-center gap-1.5 text-xs text-brand-500 hover:text-brand-700 transition-colors"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Modifier
+                        </button>
+                        <button
+                          onClick={() => handleDelete(strat.id)}
+                          disabled={deleting === strat.id}
+                          className="flex items-center gap-1.5 text-xs text-danger-400 hover:text-danger-600 transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          {deleting === strat.id ? 'Suppression...' : 'Supprimer'}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </Card>
@@ -297,6 +344,31 @@ export default function StrategiesPage() {
           <Button type="submit" fullWidth loading={importing}>
             <Download className="h-4 w-4" />
             Importer
+          </Button>
+        </form>
+      </Modal>
+
+      {/* Modal modification */}
+      <Modal open={showEditModal} onClose={() => { setShowEditModal(false); setEditingStrategy(null); }} title="Modifier la stratégie">
+        <form onSubmit={handleEdit} className="space-y-4">
+          <Input
+            label="Titre"
+            placeholder="Ex: Envoyer un résumé avant le RDV"
+            value={editForm.titre}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, titre: e.target.value }))}
+          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Contenu</label>
+            <textarea
+              placeholder="Décrivez votre stratégie en détail..."
+              value={editForm.contenu}
+              onChange={(e) => setEditForm((prev) => ({ ...prev, contenu: e.target.value }))}
+              rows={5}
+              className="w-full px-4 py-3 rounded-xl border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-base resize-none"
+            />
+          </div>
+          <Button type="submit" fullWidth loading={saving}>
+            Enregistrer les modifications
           </Button>
         </form>
       </Modal>
