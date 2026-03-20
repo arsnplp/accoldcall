@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogOut, Save, User } from 'lucide-react';
+import { LogOut, Save, User, Shield, ChevronRight } from 'lucide-react';
+import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Header from '@/components/layout/Header';
@@ -147,6 +148,22 @@ export default function SettingsPage() {
             ))}
           </div>
         </div>
+
+        {/* Stratégies Anti No-Show */}
+        <Link href="/strategies" className="block">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center justify-between hover:bg-gray-50 transition-colors">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-accent-100 flex items-center justify-center">
+                <Shield className="h-5 w-5 text-accent-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Stratégies Anti No-Show</p>
+                <p className="text-xs text-gray-500">Conseils et techniques personnelles</p>
+              </div>
+            </div>
+            <ChevronRight className="h-5 w-5 text-gray-400" />
+          </div>
+        </Link>
 
         {/* Save */}
         <Button fullWidth loading={saving} onClick={handleSave}>
