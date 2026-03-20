@@ -1,0 +1,24 @@
+{
+  "name": "Accold Call",
+  "short_name": "Accold Call",
+  "description": "Suivi d'appels commerciaux et gestion de leads",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#6E87A6",
+  "background_color": "#f9fafb",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
