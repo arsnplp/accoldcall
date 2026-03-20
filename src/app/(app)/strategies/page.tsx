@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Shield, Plus, Trash2, ChevronDown, ChevronUp, Lightbulb } from 'lucide-react';
+import { Shield, Plus, Trash2, ChevronDown, ChevronUp, Lightbulb, Share2, Download, Copy, Check } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -14,6 +14,7 @@ interface Strategy {
   id: string;
   titre: string;
   contenu: string;
+  share_code: string;
   created_at: string;
 }
 
@@ -46,11 +47,15 @@ export default function StrategiesPage() {
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedTip, setExpandedTip] = useState<number | null>(null);
   const [expandedStrategy, setExpandedStrategy] = useState<string | null>(null);
   const [form, setForm] = useState({ titre: '', contenu: '' });
+  const [importCode, setImportCode] = useState('');
 
   const fetchStrategies = useCallback(async () => {
     const supabase = supabaseRef.current;
@@ -119,15 +124,64 @@ export default function StrategiesPage() {
     setDeleting(null);
   }
 
+  async function handleImport(e: React.FormEvent) {
+    e.preventDefault();
+    const code = importCode.trim().toUpperCase();
+    if (!code) { toast('Entrez un code', 'error'); return; }
+
+    setImporting(true);
+    const supabase = supabaseRef.current;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setImporting(false); return; }
+
+    const { data: source, error: fetchError } = await supabase
+      .from('strategies')
+      .select('titre, contenu')
+      .eq('share_code', code)
+      .single();
+
+    if (fetchError || !source) {
+      toast('Code introuvable', 'error');
+      setImporting(false);
+      return;
+    }
+
+    const { error: insertError } = await supabase
+      .from('strategies')
+      .insert({ user_id: user.id, titre: source.titre, contenu: source.contenu });
+
+    if (insertError) {
+      toast('Erreur lors de l\'import', 'error');
+    } else {
+      toast('Stratégie importée !');
+      setImportCode('');
+      setShowImportModal(false);
+      fetchStrategies();
+    }
+    setImporting(false);
+  }
+
+  function copyCode(code: string) {
+    navigator.clipboard.writeText(code);
+    setCopiedId(code);
+    toast('Code copié !');
+    setTimeout(() => setCopiedId(null), 2000);
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <Header
         title="Anti No-Show"
         showBack
         rightAction={
-          <button onClick={() => setShowModal(true)} className="p-2 -mr-2">
-            <Plus className="h-5 w-5 text-brand-500" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setShowImportModal(true)} className="p-2">
+              <Download className="h-5 w-5 text-brand-500" />
+            </button>
+            <button onClick={() => setShowModal(true)} className="p-2 -mr-2">
+              <Plus className="h-5 w-5 text-brand-500" />
+            </button>
+          </div>
         }
       />
 
@@ -177,16 +231,17 @@ export default function StrategiesPage() {
             <Card className="text-center py-8">
               <Shield className="h-10 w-10 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500 text-sm">Aucune stratégie personnelle</p>
-              <p className="text-gray-400 text-xs mt-1">Ajoutez vos propres techniques anti no-show</p>
-              <Button
-                variant="primary"
-                size="sm"
-                className="mt-4"
-                onClick={() => setShowModal(true)}
-              >
-                <Plus className="h-4 w-4" />
-                Ajouter
-              </Button>
+              <p className="text-gray-400 text-xs mt-1">Ajoutez ou importez des techniques anti no-show</p>
+              <div className="flex items-center justify-center gap-2 mt-4">
+                <Button variant="primary" size="sm" onClick={() => setShowModal(true)}>
+                  <Plus className="h-4 w-4" />
+                  Créer
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setShowImportModal(true)}>
+                  <Download className="h-4 w-4" />
+                  Importer
+                </Button>
+              </div>
             </Card>
           ) : (
             <div className="space-y-2">
@@ -206,14 +261,32 @@ export default function StrategiesPage() {
                     )}
                   </button>
                   {expandedStrategy === strat.id && (
-                    <div className="px-4 pb-4 -mt-1">
+                    <div className="px-4 pb-4 -mt-1 space-y-3">
                       <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
                         {strat.contenu}
                       </p>
+                      {/* Code de partage */}
+                      <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <Share2 className="h-3.5 w-3.5 text-gray-400" />
+                          <span className="text-xs text-gray-500">Code :</span>
+                          <span className="text-sm font-mono font-bold text-brand-600">{strat.share_code}</span>
+                        </div>
+                        <button
+                          onClick={() => copyCode(strat.share_code)}
+                          className="p-1.5 rounded-md hover:bg-gray-200 transition-colors"
+                        >
+                          {copiedId === strat.share_code ? (
+                            <Check className="h-4 w-4 text-success-500" />
+                          ) : (
+                            <Copy className="h-4 w-4 text-gray-400" />
+                          )}
+                        </button>
+                      </div>
                       <button
                         onClick={() => handleDelete(strat.id)}
                         disabled={deleting === strat.id}
-                        className="mt-3 flex items-center gap-1.5 text-xs text-danger-400 hover:text-danger-600 transition-colors"
+                        className="flex items-center gap-1.5 text-xs text-danger-400 hover:text-danger-600 transition-colors"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                         {deleting === strat.id ? 'Suppression...' : 'Supprimer'}
@@ -248,6 +321,25 @@ export default function StrategiesPage() {
           </div>
           <Button type="submit" fullWidth loading={saving}>
             Ajouter la stratégie
+          </Button>
+        </form>
+      </Modal>
+
+      {/* Modal import */}
+      <Modal open={showImportModal} onClose={() => setShowImportModal(false)} title="Importer une stratégie">
+        <form onSubmit={handleImport} className="space-y-4">
+          <p className="text-sm text-gray-500">
+            Entrez le code de partage reçu pour importer la stratégie dans votre liste.
+          </p>
+          <Input
+            label="Code de partage"
+            placeholder="Ex: A3K7M2"
+            value={importCode}
+            onChange={(e) => setImportCode(e.target.value.toUpperCase())}
+          />
+          <Button type="submit" fullWidth loading={importing}>
+            <Download className="h-4 w-4" />
+            Importer
           </Button>
         </form>
       </Modal>
